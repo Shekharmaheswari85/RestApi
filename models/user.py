@@ -1,5 +1,4 @@
 from db import db
-from typing import List
 
 
 class UserModel(db.Model):
@@ -22,5 +21,5 @@ class UserModel(db.Model):
         return cls.query.filter_by(username=username).first()
 
     @classmethod
-    def find_by_id(cls, _id: int) -> List["UserModel"]:
+    def find_by_id(cls, _id: int) -> "UserModel":
         return cls.query.filter_by(id=_id).first()

@@ -2,7 +2,6 @@ from flask_restful import Resource, request
 from flask_jwt_extended import jwt_required, fresh_jwt_required
 from models.item import ItemModel
 from schemas.item import ItemSchema
-from marshmallow import ValidationError
 
 
 NAME_ALREADY_EXIST = "An item with name '{}' already exists."
@@ -17,7 +16,7 @@ item_list_schema = ItemSchema(many=True)
 
 class Item(Resource):
     @classmethod
-    def get(cls, name):
+    def get(cls, name: str):
         item = ItemModel.find_by_name(name)
         if item:
             return item_schema.dump(item)
@@ -25,7 +24,7 @@ class Item(Resource):
 
     @classmethod
     @fresh_jwt_required
-    def post(cls, name):
+    def post(cls, name: str):
         if ItemModel.find_by_name(name):
             return {"message": NAME_ALREADY_EXIST.format(name)}, 400
         item_json = request.get_json()
@@ -39,7 +38,7 @@ class Item(Resource):
 
     @classmethod
     @jwt_required
-    def delete(cls, name):
+    def delete(cls, name: str):
         item = ItemModel.find_by_name(name)
         if item:
             item.delete_from_db()
