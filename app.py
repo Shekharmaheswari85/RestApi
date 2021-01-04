@@ -17,7 +17,7 @@ app.config["JWT_BLACKLIST_TOKEN_CHECKS"] = [
     "access",
     "refresh",
 ]  # allow blacklisting for access and refresh tokens
-app.secret_key = "jose"  # could do app.config['JWT_SECRET_KEY'] if we prefer
+app.secret_key = "shekhar"  # could do app.config['JWT_SECRET_KEY'] if we prefer
 api = Api(app)
 
 
