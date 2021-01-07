@@ -1,3 +1,5 @@
+from functools import partial
+from flask.templating import render_template
 from flask_restful import Resource
 from flask import request
 from werkzeug.security import safe_str_cmp
@@ -12,29 +14,43 @@ from flask_jwt_extended import (
 from models.user import UserModel
 from schemas.user import UserSchema
 from blacklist import BLACKLIST
+from flask import make_response
+import traceback
 
 USER_ALREADY_EXISTS = "A user with that username already exists."
+EMAIL_ALREADY_EXISTS = "A user with that email already exists."
 CREATED_SUCCESSFULLY = "User created successfully."
 USER_NOT_FOUND = "User not found."
 USER_DELETED = "User deleted."
 INVALID_CREDENTIALS = "Invalid credentials!"
 USER_LOGGED_OUT = "User <id={user_id}> successfully logged out."
-
-user_schema = UserSchema()
+NOT_CONFIRMED_ERROR = (
+    "You have not confirmed registration, please check your email<{email}>"
+)
+USER_CONFIRMED = "User Confirmed."
+FAILED_TO_CREATE = "Internal Server Error. Failed  to create user."
+SUCCESS_REGISTER_MESSAGE = "Account created Successfully, an email with an activation link has been sent to your email address please check."
+users_schema = UserSchema()
 
 
 class UserRegister(Resource):
     @classmethod
     def post(cls):
-        user_json=request.get_json()
-        # print(user_json)
-        user = user_schema.load(user_json)
-        # print(**user)
+        user = users_schema.load(request.get_json())
+
         if UserModel.find_by_username(user["username"]):
             return {"message": USER_ALREADY_EXISTS}, 400
-        user.save_to_db()
 
-        return {"message": CREATED_SUCCESSFULLY}, 201
+        if UserModel.find_by_email(user["email"]):
+            return {"message": EMAIL_ALREADY_EXISTS}, 400
+
+        try:
+            user.save_to_db()
+            user.send_confirmation_email()
+            return {"message": SUCCESS_REGISTER_MESSAGE}, 201
+        except:
+            traceback.print_exec()
+            return {"message": FAILED_TO_CREATE}, 500
 
 
 class User(Resource):
@@ -44,7 +60,7 @@ class User(Resource):
         if not user:
             return {"message": USER_NOT_FOUND}, 404
 
-        return user_schema.dump(user), 200
+        return users_schema.dump(user), 200
 
     @classmethod
     def delete(cls, user_id: int):
@@ -60,14 +76,22 @@ class UserLogin(Resource):
     @classmethod
     def post(cls):
         user_json = request.get_json()
-        user_data = user_schema.load(user_json)
+        user_data = users_schema.load(
+            user_json, partial=("email",)
+        )  # it will ignore the email field if it is not present
 
         user = UserModel.find_by_username(user_data["username"])
 
         if user and safe_str_cmp(user_data.password, user.password):
-            access_token = create_access_token(identity=user.id, fresh=True)
-            refresh_token = create_refresh_token(user.id)
-            return {"access_token": access_token, "refresh_token": refresh_token}, 200
+            if user.activated:
+                access_token = create_access_token(identity=user.id, fresh=True)
+                refresh_token = create_refresh_token(user.id)
+                return {
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                }, 200
+            else:
+                return {"message": NOT_CONFIRMED_ERROR.format(user.username)}, 401
 
         return {"message": INVALID_CREDENTIALS}, 401
 
@@ -89,3 +113,19 @@ class TokenRefresh(Resource):
         current_user = get_jwt_identity()
         new_token = create_access_token(identity=current_user, fresh=False)
         return {"access_token": new_token}, 200
+
+
+class UserConfirm(Resource):
+    @classmethod
+    def get(cls, user_id: int):
+        user = UserModel.find_by_id(user_id)
+        if not user:
+            return {"message": USER_NOT_FOUND}, 404
+        user.activated = True
+        user.save_to_db()
+        headers = {
+            "Content-Type": "text/html"
+        }  # by default flask asssumes the header type to be json
+        return make_response(
+            render_template("confirmation_page.html", email=user.username), 200, headers
+        )
