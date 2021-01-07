@@ -3,8 +3,10 @@ from models.store import StoreModel
 from models.item import ItemModel
 from schemas.item import ItemSchema
 
-class StoreSchema(ma.SQLAlchemySchema):
-    items = ma.Nested(ItemSchema,many=True)
+
+class StoreSchema(ma.ModelSchema):
+    items = ma.Nested(ItemSchema, many=True)
+
     class Meta:
         model = StoreModel
         dump_only = ("id",)

@@ -1,10 +1,9 @@
 from ma import ma
 from models.user import UserModel
-from marshmallow_sqlalchemy import ModelSchema
-from marshmallow import Schema
-class UserSchema(Schema):
+
+
+class UserSchema(ma.ModelSchema):
     class Meta:
         model = UserModel
         load_only = ("password",)
-        dump_only = ("id")
-        load_instance = True
+        dump_only = ("id", "activated")
