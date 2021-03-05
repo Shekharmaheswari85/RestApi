@@ -22,7 +22,7 @@ USER_DELETED = "User deleted."
 INVALID_CREDENTIALS = "Invalid credentials!"
 USER_LOGGED_OUT = "User <id={user_id}> successfully logged out."
 NOT_CONFIRMED_ERROR = (
-    "You have not confirmed registration, please check your email <{}>."
+    "You have not confirmed registration, please check your email <{email}>."
 )
 FAILED_TO_CREATE = "Internal server error. Failed to create user."
 SUCCESS_REGISTER_MESSAGE = "Account created successfully, an email with an activation link has been sent to your email address, please check."
@@ -36,18 +36,17 @@ class UserRegister(Resource):
         user_json = request.get_json()
         user = user_schema.load(user_json)
 
-        if UserModel.find_by_username(user.username):
+        if UserModel.find_by_username(user["username"]):
             return {"message": USER_ALREADY_EXISTS}, 400
 
-        if UserModel.find_by_email(user.email):
-            return {"message": EMAIL_ALREADY_EXISTS}, 400
-
+        if UserModel.find_by_email(user["email"]):
+            return {"message ": EMAIL_ALREADY_EXISTS}, 400
         try:
             user.save_to_db()
             user.send_confirmation_email()
             return {"message": SUCCESS_REGISTER_MESSAGE}, 201
         except MailGunException as e:
-            user.delete_from_db()  # rollback
+            # user.delete_from_db()  # rollback
             return {"message": str(e)}, 500
         except:  # failed to save user to db
             traceback.print_exc()
